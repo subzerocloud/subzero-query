@@ -1,6 +1,7 @@
 {
   "type": "module",
   "scripts": {
+    "clean": "rm -rf dist",
     "build": "node esbuild.config.cjs",
     "watch": "NODE_ENV=development nodemon src/server.ts",
     "start": "node dist/server.cjs"

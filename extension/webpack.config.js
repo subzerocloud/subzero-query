@@ -8,7 +8,7 @@ const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin"
 const ReactRefreshTypeScript = require("react-refresh-typescript");
 
 const urlDev = "https://localhost:3000/";
-const urlProd = "https://query.subzero.cloud/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const urlProd = "https://extension.subzero-query.subzero.cloud/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();

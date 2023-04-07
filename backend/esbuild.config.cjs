@@ -54,7 +54,7 @@ esbuild.build({
     },
     inject: ['./import.meta.url-polyfill.js'],
     loader: { '.wasm': 'copy' },
-    external: ['better-sqlite3'],
+    external: ['better-sqlite3', 'bindings', 'file-uri-to-path'],
     plugins: [
         //cjs_to_esm_plugin,
         x.copy({
@@ -67,6 +67,18 @@ esbuild.build({
             assets: {
                 from: ['./node_modules/better-sqlite3/**/*'],
                 to: ['./node_modules/better-sqlite3'],
+            }
+        }),
+        x.copy({
+            assets: {
+                from: ['./node_modules/bindings/**/*'],
+                to: ['./node_modules/bindings'],
+            }
+        }),
+        x.copy({
+            assets: {
+                from: ['./node_modules/file-uri-to-path/**/*'],
+                to: ['./node_modules/file-uri-to-path'],
             }
         }),
 

@@ -171,24 +171,6 @@ router.all('*', async (_, res) => {
     return res
 })
 
-// create the server
-// if in development mode import office-addin-dev-certs
-const serverOptions = {}
-let serveHttps = false
-if (process.env.NODE_ENV === 'development') {
-    (async function () {
-        try {
-            const devCertsAddin = await import('office-addin-dev-certs');
-            const httpsOptions = await devCertsAddin.getHttpsServerOptions();
-            Object.assign(serverOptions, httpsOptions);
-            serveHttps = true
-
-        } catch (err) {
-            console.error('Error while installing dev certificates.')
-            console.error(err)
-        }
-    })();
-}
 async function handleRequest(req:http.IncomingMessage, res:http.ServerResponse){
     // respond to request
     try {
@@ -233,17 +215,40 @@ async function handleRequest(req:http.IncomingMessage, res:http.ServerResponse){
         }
     }
 }
-const server = serveHttps ? https.createServer(serverOptions, handleRequest) : http.createServer(serverOptions, handleRequest)
 
-server.listen(serverPort, serverHost, undefined, async () => {
-    try {
-        await initDbRegistry()
-        const protocol = serveHttps ? 'https' : 'http'
-        console.log(`Server is running on ${protocol}://${serverHost}:${serverPort}`);
-    } catch (e) {
-        console.error(`Failed to initialize: ${e}`)
+// create the server
+async function startServer(){
+    // if in development mode import office-addin-dev-certs
+    const serverOptions = {}
+    let serveHttps = false
+    if (process.env.NODE_ENV === 'development') {
+        try {
+            const devCertsAddin = await import('office-addin-dev-certs');
+            const httpsOptions = await devCertsAddin.getHttpsServerOptions();
+
+            Object.assign(serverOptions, httpsOptions);
+            serveHttps = true
+
+        } catch (err) {
+            console.error('Error while installing dev certificates.')
+            console.error(err)
+        }
     }
-})
+
+    const server = serveHttps ? https.createServer(serverOptions, handleRequest) : http.createServer(serverOptions, handleRequest)
+
+    server.listen(serverPort, serverHost, undefined, async () => {
+        try {
+            await initDbRegistry()
+            const protocol = serveHttps ? 'https' : 'http'
+            console.log(`Server is running on ${protocol}://${serverHost}:${serverPort}`);
+        } catch (e) {
+            console.error(`Failed to initialize: ${e}`)
+        }
+    })
+}
+
+startServer()
 
 
 
