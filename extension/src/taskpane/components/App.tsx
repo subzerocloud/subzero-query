@@ -257,6 +257,7 @@ export default class App extends React.Component<AppProps, AppState> {
       filterTypes,
       errorMessage,
     } = this.state;
+    const { apiEndpoint } = this.props;
     //const url = this.constructDatasetRequestUrl(selectedDataset, selectedDatasetSchema, selectedTable, selectedColumns);
     const filter = QbUtils.queryBuilderFormat(tree, baseConfig) as Group;
     const query = !selectedTable
@@ -266,7 +267,7 @@ export default class App extends React.Component<AppProps, AppState> {
           //table: selectedTable.name,
           filter,
         });
-    const url = constructDatasetRequestUrl(selectedDataset, selectedDatasetSchema, selectedTable, query);
+    const url = constructDatasetRequestUrl(apiEndpoint, selectedDataset, selectedDatasetSchema, selectedTable, query);
     const datasourceName = !selectedDataset
       ? ""
       : disableSchemaTableSelect
