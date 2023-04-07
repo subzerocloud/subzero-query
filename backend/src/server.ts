@@ -99,6 +99,12 @@ router.get('/', async (_, res) => {
     return res
 })
 
+// health check
+router.get('/up', async (_, res) => {
+    res.writeHead(200).end('OK')
+    return res
+})
+
 // return the schema for a database
 router.get('/:db/schema', async (req, res) => {
     const db = req.params.db
