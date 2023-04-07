@@ -14,11 +14,7 @@ dotenv.config()
 const router = Router()
 
 // get the name of the directory where all the sqlite files will be stored
-if (!process.env.DB_PATH) {
-    console.error('The DB_PATH environment variable is not set, exiting...');
-    process.exit(0);
-}
-const sqliteDbsPath = process.env.DB_PATH || '/data';
+const sqliteDbsPath = process.env.SQLITE_DATASETS || '/sqlite_datasets';
 const serverHost = process.env.SERVER_HOST || 'localhost';
 const serverPort = process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT) : 4000;
 const maxRows = process.env.MAX_ROWS ? parseInt(process.env.MAX_ROWS) : 1000;
@@ -95,12 +91,15 @@ router.get('/', async (_, res) => {
             endpoint: `/${entry.name}`,
         }
     })
+    res.setHeader('Content-Type', 'application/json')
     res.writeHead(200).end(JSON.stringify(dbRegistryMetadata))
     return res
 })
 
 // health check
 router.get('/up', async (_, res) => {
+    // set response content type
+    res.setHeader('Content-Type', 'text/plain')
     res.writeHead(200).end('OK')
     return res
 })
@@ -111,6 +110,7 @@ router.get('/:db/schema', async (req, res) => {
     if (!dbRegistry[db]) {
         throw new SubzeroError(`Database not found: ${db}`, 406)
     }
+    res.setHeader('Content-Type', 'application/json')
     res.writeHead(200).end(JSON.stringify(dbRegistry[db].schema))
     return res
 })

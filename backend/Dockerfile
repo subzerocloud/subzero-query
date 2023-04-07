@@ -9,7 +9,7 @@ RUN yarn build
 # ---- Release ----
 FROM node:18-alpine AS release
 WORKDIR /app
-ENV DB_PATH=/data
+ENV SQLITE_DATASETS=/sqlite_datasets
 ENV SERVER_HOST=0.0.0.0
 ENV SERVER_PORT=4000
 COPY --from=builder /app/dist /app
