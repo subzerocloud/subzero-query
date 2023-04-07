@@ -1,0 +1,31 @@
+html,
+body {
+    margin: 0;
+    padding: 5px;
+    
+    /* height: 100%;
+    width: 100%; */
+    /* border: 1px solid #ccc; */
+}
+
+label {
+    margin-top: 10px;
+    display: block;
+}
+.query-builder {
+    margin: 0px !important;
+}
+
+.group--actions--tr {
+    opacity: 1 !important
+}
+
+.query-builder .group {
+    background-color: transparent;
+    border: none;
+}
+
+b {
+    font-weight: bold;
+}
+
