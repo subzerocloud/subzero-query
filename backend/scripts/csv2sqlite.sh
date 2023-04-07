@@ -2,14 +2,21 @@
 
 # Check that the CSV URL is provided as a command line argument
 if [ -z "$1" ]; then
-  echo "Usage: $0 <csv_url>"
-  exit 1
+    echo "Usage: $0 <csv_url>"
+    exit 1
 fi
+
+# Change directory to SQLITE_DATASETS directory if the env var is set
+if [ ! -z "$SQLITE_DATASETS" ]; then
+    cd "$SQLITE_DATASETS"
+fi
+
+CURRENT_DIR=$(pwd)
 
 url="$1"
 
 # Download the CSV dataset
-echo "Downloading csv"
+echo "Downloading csv to $CURRENT_DIR"
 http_headers=$(curl -L -OJ -D /dev/stdout "$url" 2>/dev/null)
 
 # Remove any leading or trailing whitespace characters
@@ -63,21 +70,29 @@ for (( i=1; i<=num_columns; i++ )); do
 done
 
 # Generate the SQL statement to create the table
-create_table_sql="CREATE TABLE mytable ("
+create_table_sql="CREATE TABLE dataset ("
 for (( i=1; i<=num_columns; i++ )); do
     column_name=$(echo "$header" | awk -F "," '{print $'"$i"'}')
     create_table_sql="$create_table_sql \"$column_name\" ${column_types[$((i-1))]},"
 done
 create_table_sql="${create_table_sql%?});"
 
+sqlite_file="${filename%.csv}.db"
+
+# Remove the sqlite database if it already exists
+if [ -f "$sqlite_file" ]; then
+    echo "Removing existing sqlite database"
+    rm "$sqlite_file"
+fi
+
 # Create a new SQLite database with the same name as the CSV file
 echo "Creating sqlite database"
-sqlite3 "${filename%.csv}.db" "$create_table_sql"
+sqlite3 "${sqlite_file}" "$create_table_sql"
 
 # Load the data from the CSV file into the database
 echo "Loading data into sqlite database"
-sqlite3 "${filename%.csv}.db" <<EOF
-.import --csv --skip 1 "$filename" mytable
+sqlite3 "${sqlite_file}" <<EOF
+.import --csv --skip 1 "$filename" dataset
 EOF
 
 echo "Done"
