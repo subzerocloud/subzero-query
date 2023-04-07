@@ -32,7 +32,7 @@ const dbTypeToFieldType = {
   date: "date",
   datetime: "datetime",
 };
-const apiEndpoint = "https://localhost:4000";
+
 // const useStyles = makeStyles({
 //   multiselect: {
 //     display: "flex",
@@ -76,6 +76,7 @@ const baseConfig = {
 export interface AppProps {
   title: string;
   isOfficeInitialized: boolean;
+  apiEndpoint: string;
 }
 
 export interface AppState {
@@ -103,13 +104,13 @@ function columnsToFields(columns) {
   return fields;
 }
 
-function qualifyEndpoint(endpoint) {
+function qualifyEndpoint(apiEndpoint, endpoint) {
   if (endpoint.startsWith("http")) return endpoint;
   return `${apiEndpoint}${endpoint}`;
 }
-function constructDatasetRequestUrl(dataset, schema, table, query?) {
+function constructDatasetRequestUrl(apiEndpoint, dataset, schema, table, query?) {
   if (!dataset || !schema || !table) return null;
-  return `${qualifyEndpoint(dataset.endpoint)}/${schema.name}/${table.name}${query}`;
+  return `${qualifyEndpoint(apiEndpoint, dataset.endpoint)}/${schema.name}/${table.name}${query}`;
 }
 
 export default class App extends React.Component<AppProps, AppState> {
@@ -137,13 +138,15 @@ export default class App extends React.Component<AppProps, AppState> {
     }
   };
   getAvailableDatasets = async () => {
+    const { apiEndpoint } = this.props;
     const response = await fetch(`${apiEndpoint}/`);
     const datasets = await response.json();
     return datasets;
   };
   loadDatasetSchema = async (dataset) => {
     if (dataset.schema) return;
-    const response = await fetch(`${qualifyEndpoint(dataset.endpoint)}/schema`);
+    const { apiEndpoint } = this.props;
+    const response = await fetch(`${qualifyEndpoint(apiEndpoint, dataset.endpoint)}/schema`);
     const datasetSchema = await response.json();
     dataset.schema = datasetSchema;
   };

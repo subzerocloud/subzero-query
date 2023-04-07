@@ -9,6 +9,8 @@ const ReactRefreshTypeScript = require("react-refresh-typescript");
 
 const urlDev = "https://localhost:3000/";
 const urlProd = "https://extension.subzero-query.subzero.cloud/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const apiDev = "https://localhost:4000";
+const apiProd = "https://api.subzero-query.subzero.cloud"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -26,7 +28,7 @@ module.exports = async (env, options) => {
     entry: {
       polyfill: ["core-js/stable", "regenerator-runtime/runtime"],
       vendor: ["react", "react-dom", "core-js", "@fluentui/react"],
-      taskpane: ["./src/taskpane/index.tsx", "./src/taskpane/taskpane.html"],
+      taskpane: ["./src/taskpane/index.tsx",],
       commands: "./src/commands/commands.ts",
     },
     output: {
@@ -123,8 +125,11 @@ module.exports = async (env, options) => {
       }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
-        template: "./src/taskpane/taskpane.html",
+        template: "./src/taskpane/taskpane.html.tpl",
         chunks: ["taskpane", "vendor", "polyfills"],
+        templateParameters: {
+          'defaultApiEndpoint': dev ? apiDev : apiProd,
+        },
       }),
       new HtmlWebpackPlugin({
         filename: "commands.html",
@@ -135,6 +140,7 @@ module.exports = async (env, options) => {
         Promise: ["es6-promise", "Promise"],
       }),
     ].filter(Boolean),
+
     devServer: {
       hot: true,
       headers: {

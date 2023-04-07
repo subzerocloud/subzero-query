@@ -9,19 +9,19 @@ import "./taskpane.css";
 const customTheme: Theme = {
   ...theme
 };
-/* global document, Office, module, require */
 
 initializeIcons();
 
 let isOfficeInitialized = false;
+let apiEndpoint = '';
 
-const title = "Contoso Task Pane Add-in";
+const title = "subZero Query Add-in";
 
 const render = (Component) => {
   ReactDOM.render(
     // <AppContainer>
     <ThemeProvider theme={customTheme} style={{ backgroundColor: "transparent" }}>
-      <Component title={title} isOfficeInitialized={isOfficeInitialized} />
+      <Component title={title} isOfficeInitialized={isOfficeInitialized} apiEndpoint={apiEndpoint} />
     </ThemeProvider>,
     // </AppContainer>,
     document.getElementById("container")
@@ -31,7 +31,22 @@ const render = (Component) => {
 /* Render application after Office initializes */
 Office.onReady(() => {
   isOfficeInitialized = true;
-  render(App);
+  Excel.run(async (context) => {
+    const settings = context.workbook.settings;
+    let apiEndpointSetting = settings.getItemOrNullObject("subzeroApiEndpoint");
+    await context.sync();
+    if(apiEndpointSetting.isNullObject) {
+      settings.add("subzeroApiEndpoint", global.defaultApiEndpoint);
+      apiEndpointSetting = settings.getItem("subzeroApiEndpoint");
+    }
+    apiEndpointSetting.load("value");
+    await context.sync();
+    apiEndpoint = apiEndpointSetting.value;
+    
+    render(App);
+  }).catch(function (error) {
+    console.error("app init error", error);
+  });
 });
 
 //if ((module as any).hot) (module as any).hot.accept;
