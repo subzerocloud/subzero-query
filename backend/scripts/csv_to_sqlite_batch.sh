@@ -65,7 +65,7 @@ for (( i=1; i<=num_columns; i++ )); do
 
     # echo if the column name was changed
     if [ "$column_name" != "$stripped_name" ]; then
-        echo "Stripped column name: $column_name -> $stripped_name"
+        # echo "Stripped column name: $column_name -> $stripped_name"
         column_name="$stripped_name"
     fi
 
@@ -83,7 +83,7 @@ fi
 
 # Create a new SQLite database with the same name as the CSV file
 echo "Creating sqlite database"
-echo "$create_table_sql"
+# echo "$create_table_sql"
 sqlite3 "${sqlite_file}" "$create_table_sql"
 
 # Load the data from the CSV file into the database
