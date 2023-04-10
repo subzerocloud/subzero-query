@@ -118,8 +118,6 @@ async function initDbRegistry() {
 
 function searchRegistry(searchString: string): Array<RegistryEntry> {
     const searchResults = fuse.search(searchString);
-    console.log("searchString: ", searchString)
-    console.log("searchResults: ", searchResults)
     return searchResults.map(result => result.item);
 }
 
