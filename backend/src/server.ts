@@ -7,6 +7,7 @@ import Subzero, { SubzeroError, getIntrospectionQuery, Env, fmtContentRangeHeade
 import * as http from 'http'
 import * as https from 'https'
 import { Router } from 'itty-router'
+import Fuse from 'fuse.js';
 
 type DbType = 'sqlite' | 'postgres'
 
@@ -27,18 +28,24 @@ if (!fs.existsSync(sqliteDbsPath)) {
 
 // a hash map holding all the database connections
 let registryInitialized = false
-const dbRegistry: {
-    [key: string]: {
-        name: string;
-        type: DbType;
-        db: SQLiteDatabase;
-        description: string;
-        subzeroBackend: Subzero;
-        schema: any;
-        publicSchemas?: string[];
-    }
-    
-} = {};
+type Metadata = {
+    title?: string;
+    description?: string;
+    publisher?: string;
+}
+type RegistryEntry = {
+    name: string;
+    type: DbType;
+    db: SQLiteDatabase;
+    subzeroBackend: Subzero;
+    schema: any;
+    publicSchemas?: string[];
+
+    // dataset description metadata
+    metadata: Metadata
+}
+const dbRegistry: { [key: string]: RegistryEntry } = {};
+let fuse: Fuse<RegistryEntry>;
 
 async function getRegistryEntryForDb(type: DbType, db_connection_string: string) {
     // switch based on the database type
@@ -50,16 +57,29 @@ async function getRegistryEntryForDb(type: DbType, db_connection_string: string)
             const db = new SQLite(`${directory}/${filename}`)
             const name = filename.replace('.db', '')
             let description = name
-            const descriptionFile = `${directory}/${name}.txt`
-            if (fs.existsSync(descriptionFile)) {
-                description = fs.readFileSync(descriptionFile, 'utf8')
+            const metadataFile = `${directory}/${name}.json`
+            let metadata:Metadata = {}
+            if (fs.existsSync(metadataFile)) {
+                const metadataStr = fs.readFileSync(metadataFile, 'utf8')
+                const m = JSON.parse(metadataStr)
+                metadata = {
+                    title: m.title,
+                    description: m.notes || m.description,
+                    publisher: m.organization ? m.organization.title : undefined,
+                }
             }
             const { query /*, parameters*/ } = getIntrospectionQuery('sqlite', 'public')
             const result = db.prepare(query).get()
             const schema = JSON.parse(result.json_schema)
-            const subzeroBackend = new Subzero('sqlite', schema)
-            delete schema.use_internal_permissions
-            return { name, db, description, subzeroBackend, schema, type }
+            try {
+                const subzeroBackend = new Subzero('sqlite', schema)
+                delete schema.use_internal_permissions
+                return { name, db, description, subzeroBackend, schema, type, metadata }
+            } catch (err) {
+                console.error(`Error initializing subzero backend for ${db_connection_string}: ${err}`)
+                console.log("schema: ", schema.schemas[0].objects[0].columns)
+                throw err
+            }
         default:
             throw new Error(`Unsupported database type: ${type}`)
     }
@@ -70,24 +90,49 @@ async function initDbRegistry() {
     // get all the *.db files in the directory
     const dbFiles = fs.readdirSync(sqliteDbsPath).filter((file) => file.endsWith('.db'));
     // add dbRegistry entries for each db file
-    dbFiles.forEach(async (file) => {
+    await dbFiles.forEach(async (file) => {
         const db_connection_string = `${sqliteDbsPath}/${file}`
         const entry = await getRegistryEntryForDb('sqlite', db_connection_string)
         dbRegistry[entry.name] = entry
     })
     console.log(`Initialized database registry with ${dbFiles.length} entries`)
-
+    const registryIndex = Fuse.createIndex(['name', 'metadata.title', 'metadata.description', 'metadata.publisher'], Object.values(dbRegistry));
+    fuse = new Fuse(Object.values(dbRegistry), {
+            keys: [
+                { name: 'name', weight: 3 }, // Higher weight for the name property
+                { name: 'metadata.title', weight: 3 },
+                { name: 'metadata.description', weight: 1 },
+                { name: 'metadata.publisher', weight: 2 },
+            ],
+            includeScore: true,
+            threshold: 0.4, // Adjust the threshold for search sensitivity
+            ignoreLocation: true,
+            useExtendedSearch: true,
+            findAllMatches: true,
+            isCaseSensitive: false,
+        }
+        , registryIndex
+    );
     registryInitialized = true
+}
+
+function searchRegistry(searchString: string): Array<RegistryEntry> {
+    const searchResults = fuse.search(searchString);
+    console.log("searchString: ", searchString)
+    console.log("searchResults: ", searchResults)
+    return searchResults.map(result => result.item);
 }
 
 // routes
 // return the dbRegistryMetadata
-router.get('/', async (_, res) => {
-    const dbRegistryMetadata = Object.keys(dbRegistry).map((key) => {
-        const entry = dbRegistry[key]
+router.get('/', async (req, res) => {
+    // get search parameter
+    const { search } = req.query
+    const searchString = search ? search.toString() : ''
+    const dbRegistryMetadata = searchRegistry(searchString).map((entry) => {
         return {
             name: entry.name,
-            description: entry.description,
+            metadata: entry.metadata,
             endpoint: `/${entry.name}`,
         }
     })

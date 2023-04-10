@@ -25,7 +25,7 @@ if check_if_archive "$filename"; then
 fi
 
 # Get the header row of the CSV file
-header=$(head -n 1 "$filename")
+header=$(head -n 1 "$filename" | LC_ALL=C sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
 # Determine the number of columns in the CSV file
 num_columns=$(echo "$header" | awk -F "," '{print NF}')
@@ -60,6 +60,15 @@ done
 create_table_sql="CREATE TABLE dataset ("
 for (( i=1; i<=num_columns; i++ )); do
     column_name=$(echo "$header" | awk -F "," '{print $'"$i"'}')
+    # Remove new lines and quotes from the column name
+    stripped_name=$(echo "$column_name" | tr -cd '[:alnum:][:space:]-_')
+
+    # echo if the column name was changed
+    if [ "$column_name" != "$stripped_name" ]; then
+        echo "Stripped column name: $column_name -> $stripped_name"
+        column_name="$stripped_name"
+    fi
+
     create_table_sql="$create_table_sql \"$column_name\" ${column_types[$((i-1))]},"
 done
 create_table_sql="${create_table_sql%?});"
@@ -74,6 +83,7 @@ fi
 
 # Create a new SQLite database with the same name as the CSV file
 echo "Creating sqlite database"
+echo "$create_table_sql"
 sqlite3 "${sqlite_file}" "$create_table_sql"
 
 # Load the data from the CSV file into the database
