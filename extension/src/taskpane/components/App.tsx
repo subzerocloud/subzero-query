@@ -7,6 +7,7 @@ import { Dropdown, Button, MessageBar, MessageBarType, } from "@fluentui/react";
 // import Header from "./Header";
 //import HeroList, { HeroListItem } from "./HeroList";
 import Progress from "./Progress";
+import Search from "./Search";
 import { formatPostgrestQueryString, Group } from "../postgrest";
 // import fetch
 
@@ -108,6 +109,7 @@ function qualifyEndpoint(apiEndpoint, endpoint) {
   if (endpoint.startsWith("http")) return endpoint;
   return `${apiEndpoint}${endpoint}`;
 }
+
 function constructDatasetRequestUrl(apiEndpoint, dataset, schema, table, query?) {
   if (!dataset || !schema || !table) return null;
   return `${qualifyEndpoint(apiEndpoint, dataset.endpoint)}/${schema.name}/${table.name}${query}`;
@@ -129,6 +131,7 @@ export default class App extends React.Component<AppProps, AppState> {
       filterTypes: {},
     };
   }
+
   componentDidMount = async () => {
     try {
       const datasets = await this.getAvailableDatasets();
@@ -136,24 +139,28 @@ export default class App extends React.Component<AppProps, AppState> {
     } catch (error) {
       this.setState((prevState) => ({ ...prevState, errorMessage: error.message }));
     }
-  };
+  }
+
   getAvailableDatasets = async () => {
     const { apiEndpoint } = this.props;
     const response = await fetch(`${apiEndpoint}/`);
     const datasets = await response.json();
     return datasets;
-  };
+  }
+
   loadDatasetSchema = async (dataset) => {
     if (dataset.schema) return;
     const { apiEndpoint } = this.props;
     const response = await fetch(`${qualifyEndpoint(apiEndpoint, dataset.endpoint)}/schema`);
     const datasetSchema = await response.json();
     dataset.schema = datasetSchema;
-  };
+  }
+
   onFilterChange = (immutableTree: ImmutableTree, config: Config) => {
     this.setState((prevState) => ({ ...prevState, tree: immutableTree, config: config }));
     //const jsonTree = QbUtils.getTree(immutableTree);
-  };
+  }
+
   onDatasetChange = async (_, item) => {
     const selectedDataset = item ? this.state.datasets.find((dataset) => dataset.name === item.key) : null;
     let disableSchemaTableSelect = false;
@@ -178,7 +185,7 @@ export default class App extends React.Component<AppProps, AppState> {
       filterTypes,
       selectedColumns: [],
     }));
-  };
+  }
 
   importData = async (datasourceName: string, columns: string[], url: string) => {
     //const sheetName = datasourceName.substring(0, 31);
@@ -223,7 +230,8 @@ export default class App extends React.Component<AppProps, AppState> {
     } catch (error) {
       this.setState((prevState) => ({ ...prevState, errorMessage: error.message }));
     }
-  };
+  }
+
   renderBuilder = (props: BuilderProps) => {
     return (
       <div className="query-builder-container">
@@ -232,8 +240,8 @@ export default class App extends React.Component<AppProps, AppState> {
         </div>
       </div>
     );
-  };
-
+  }
+  
   render() {
     const { title, isOfficeInitialized } = this.props;
     if (!isOfficeInitialized) {
@@ -284,6 +292,7 @@ export default class App extends React.Component<AppProps, AppState> {
             </option>
           ))}
         </select> */}
+        <Search endpoint={apiEndpoint} />
         <Dropdown
           id="dataset"
           label="Dataset"
