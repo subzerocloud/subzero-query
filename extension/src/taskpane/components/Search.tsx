@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { List } from '@fluentui/react/lib/List';
+import { useTheme } from '@fluentui/react/lib/Theme';
 import { mergeStyles } from '@fluentui/react/lib/Styling';
 
 interface SearchItem {
@@ -12,111 +13,96 @@ interface SearchItem {
     };
 }
 
-interface SearchResultProps {
-    item: SearchItem;
-    onSelect: (item: SearchItem) => void;
-}
-
-const searchResultStyle = mergeStyles({
-    cursor: 'pointer',
-    padding: '4px',
-    '&:hover': {
-        backgroundColor: '#f3f2f1',
-    },
-});
-
-const SearchResult: React.FC<SearchResultProps> = ({ item, onSelect }) => {
-    return (
-        <div className={searchResultStyle} onClick={() => onSelect(item) }>
-            {item.metadata.title}
-        </div>
-    );
-};
-
 interface SearchComponentProps {
     endpoint: string;
+    onSelect?: (item: SearchItem) => void;
 }
 
-const searchComponentStyle = mergeStyles({
-    position: 'relative',
-});
-
-const floatingListStyle = mergeStyles({
-    position: 'absolute',
-    backgroundColor: 'white',
-    border: '1px solid #ccc',
-    borderRadius: '4px',
-    maxHeight: '200px',
-    overflowY: 'auto',
-    zIndex: 1,
-});
-
-const SearchComponent: React.FC<SearchComponentProps> = ({ endpoint }) => {
-    const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
-    const [selectedItem, setSelectedItem] = useState<SearchItem | null>(null);
+const SearchComponent: React.FC<SearchComponentProps> = ({ endpoint, onSelect }) => {
+    const theme = useTheme();
     const [searchString, setSearchString] = useState<string>('');
+    const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
     const [isFocused, setIsFocused] = useState<boolean>(false);
-    const [shouldBlur, setShouldBlur] = useState<boolean>(false); // Add this line
-    //const searchBoxRef = useRef<ISearchBox>(null);
 
-    const search = async (searchString: string) => {
-        try {
-            const response = await fetch(`${endpoint}?search=${encodeURIComponent(searchString)}`);
-            const results = await response.json();
-            setSearchResults(results);
-        } catch (error) {
-            console.error('Error fetching search results:', error);
-        }
-    };
+    const searchComponentStyle = mergeStyles({
+        position: 'relative',
+    });
+
+    const searchResultStyle = mergeStyles({
+        cursor: 'pointer',
+        padding: theme.spacing.s1,
+        ':hover': {
+            backgroundColor: theme.palette.neutralLighter,
+        },
+    });
+
+    const floatingListStyle = mergeStyles({
+        position: 'absolute',
+        backgroundColor: theme.palette.white,
+        border: `1px solid ${theme.palette.neutralLight}`,
+        borderRadius: theme.effects.roundedCorner2,
+        maxHeight: '200px',
+        overflowY: 'auto',
+        zIndex: 1,
+    });
 
     useEffect(() => {
-        if (searchString.length >= 3) {
+        const search = async (searchString: string) => {
+            if (searchString.length < 3) {
+                setSearchResults([]);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${endpoint}?search=${encodeURIComponent(searchString)}`);
+                const results = await response.json();
+                setSearchResults(results);
+            } catch (error) {
+                console.error('Error fetching search results:', error);
+            }
+        };
+
+        const searchTimeout = setTimeout(() => {
             search(searchString);
-        } else {
-            setSearchResults([]);
-        }
+        }, 300);
+
+        return () => {
+            clearTimeout(searchTimeout);
+        };
     }, [searchString, endpoint]);
 
-    const onSelect = useCallback((item: SearchItem) => {
-        setSelectedItem(item);
-        setIsFocused(false); // Hide the floating list after selecting an item
-        setShouldBlur(true); // Set shouldBlur to true after selecting an item
-        console.log('setShouldBlur')
-    }, []);
-
+    const handleSelect = (item: SearchItem) => {
+        onSelect?.(item);
+    };
 
     return (
         <div className={searchComponentStyle}>
             <SearchBox
-                //componentRef={searchBoxRef}
-                placeholder="Search items"
+                placeholder="Search datasets..."
                 onChange={(_, value) => setSearchString(value || '')}
                 onFocus={() => setIsFocused(true)}
-                onBlur={() => {
-                    if (!shouldBlur) {
-                        setTimeout(() => setIsFocused(false), 100);
-                    }
-                    setShouldBlur(false); // Reset shouldBlur after onBlur is called
-                }}
-                //value={searchString}
+                onBlur={() => setIsFocused(false)}
                 showIcon={true}
             />
-            <div className={floatingListStyle} style={{display: isFocused && searchResults.length > 0 ? 'block' : 'none'}}>
+            <div
+                className={floatingListStyle}
+                style={{
+                    display: isFocused && searchResults.length > 0 ? 'block' : 'none',
+                }}
+            >
                 <List
                     items={searchResults}
                     onRenderCell={(item: SearchItem) => (
-                        <SearchResult key={item.name} item={item} onSelect={onSelect} />
+                        <div
+                            className={searchResultStyle}
+                            key={item.name}
+                            onMouseDown={() => handleSelect(item)}
+                        >
+                            {item.metadata.title}
+                        </div>
                     )}
                 />
             </div>
-            
-            {selectedItem && (
-                <div>
-                    <p>{selectedItem.metadata.publisher}</p>
-                    <p>{selectedItem.metadata.title}</p>
-                    <p>{selectedItem.metadata.description}</p>
-                </div>
-            )}
         </div>
     );
 };

@@ -4,8 +4,10 @@
 
 import * as React from "react";
 import { Dropdown, Button, MessageBar, MessageBarType, } from "@fluentui/react";
+import { Text, DocumentCard, DocumentCardType, DocumentCardTitle, DocumentCardActivity, DocumentCardDetails } from '@fluentui/react';
 // import Header from "./Header";
 //import HeroList, { HeroListItem } from "./HeroList";
+import { mergeStyles, IconButton } from "@fluentui/react";
 import Progress from "./Progress";
 import Search from "./Search";
 import { formatPostgrestQueryString, Group } from "../postgrest";
@@ -74,6 +76,23 @@ const baseConfig = {
   },
 };
 
+const selectedItemStyles = mergeStyles({
+  maxWidth: '100%',
+  backgroundColor: 'transparent',
+});
+
+const cardTitleStyles = mergeStyles({
+  padding: '0 0 10px 0',
+  height: 'auto',
+});
+
+const descriptionStyles = (expanded) =>
+  mergeStyles({
+    maxHeight: expanded ? 'none' : '2.5em',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'pre-line',
+  });
 export interface AppProps {
   title: string;
   isOfficeInitialized: boolean;
@@ -85,13 +104,14 @@ export interface AppState {
   tree: ImmutableTree;
   //config: Config;
   filterTypes: any;
-  datasets: any[];
+  //datasets: any[];
   selectedDataset: any;
   selectedDatasetSchema: any;
   selectedTable: any;
   disableSchemaTableSelect: boolean;
   selectedColumns: string[];
   errorMessage?: string;
+  descriptionExpanded: boolean;
 }
 
 function columnsToFields(columns) {
@@ -122,31 +142,33 @@ export default class App extends React.Component<AppProps, AppState> {
     this.state = {
       //tree: QbUtils.checkTree(QbUtils.loadTree(queryValue), config),
       tree: null,
-      datasets: [],
+      //datasets: [],
       selectedDataset: null,
       selectedDatasetSchema: null,
       selectedTable: null,
       disableSchemaTableSelect: false,
       selectedColumns: [],
       filterTypes: {},
+      descriptionExpanded: false,
     };
   }
 
-  componentDidMount = async () => {
-    try {
-      const datasets = await this.getAvailableDatasets();
-      this.setState((prevState) => ({ ...prevState, datasets: datasets }));
-    } catch (error) {
-      this.setState((prevState) => ({ ...prevState, errorMessage: error.message }));
-    }
-  }
+  // componentDidMount = async () => {
+  //   try {
+  //     const datasets = await this.getAvailableDatasets();
+  //     this.setState((prevState) => ({ ...prevState, datasets: datasets }));
+  //   } catch (error) {
+  //     console.error(error);
+  //     this.setState((prevState) => ({ ...prevState, errorMessage: error.message }));
+  //   }
+  // }
 
-  getAvailableDatasets = async () => {
-    const { apiEndpoint } = this.props;
-    const response = await fetch(`${apiEndpoint}/`);
-    const datasets = await response.json();
-    return datasets;
-  }
+  // getAvailableDatasets = async () => {
+  //   const { apiEndpoint } = this.props;
+  //   const response = await fetch(`${apiEndpoint}/`);
+  //   const datasets = await response.json();
+  //   return datasets;
+  // }
 
   loadDatasetSchema = async (dataset) => {
     if (dataset.schema) return;
@@ -161,8 +183,8 @@ export default class App extends React.Component<AppProps, AppState> {
     //const jsonTree = QbUtils.getTree(immutableTree);
   }
 
-  onDatasetChange = async (_, item) => {
-    const selectedDataset = item ? this.state.datasets.find((dataset) => dataset.name === item.key) : null;
+  onDatasetChange = async (selectedDataset) => {
+    //const selectedDataset = item ? this.state.datasets.find((dataset) => dataset.name === item.key) : null;
     let disableSchemaTableSelect = false;
     let selectedDatasetSchema = null;
     let selectedTable = null;
@@ -187,9 +209,10 @@ export default class App extends React.Component<AppProps, AppState> {
     }));
   }
 
-  importData = async (datasourceName: string, columns: string[], url: string) => {
+  importData = async (datasourceName: string, selectedColumns: string[], url: string) => {
     //const sheetName = datasourceName.substring(0, 31);
     const datasourceExcelName = datasourceName.replace(/[^a-zA-Z0-9]/g, "_");
+    let columns = selectedColumns
     try {
       await Excel.run(async (context) => {
         // fetch data from the database using the REST api
@@ -203,14 +226,19 @@ export default class App extends React.Component<AppProps, AppState> {
         // create a new worksheet and table to display the data
         //context.workbook.worksheets.getItemOrNullObject(sheetName).delete();
         //const sheet = context.workbook.worksheets.add(sheetName.substring(0, 31));
+
+        if (columns.length === 0) {
+          columns = Object.keys(data[0]);
+        }
         const sheet = context.workbook.worksheets.getActiveWorksheet();
         sheet.load("id");
         await context.sync();
         const sheetId = sheet.id;
         const lastLetter = String.fromCharCode(65 + columns.length - 1);
-        //let tbl = sheet.tables.add(`A1:${lastLetter}1`, true);
-        const tableName = `${sheetId}_${datasourceExcelName}`.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 250);
+        //const tableName = `${sheetId}_${datasourceExcelName}`.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 250);
+        const tableName = `${sheetId}`.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 250);
         sheet.tables.getItemOrNullObject(tableName).delete();
+        //await context.sync();
         let tbl = sheet.tables.add(`A1:${lastLetter}1`, true);
         tbl.name = tableName;
         tbl.getHeaderRowRange().values = [columns];
@@ -256,7 +284,7 @@ export default class App extends React.Component<AppProps, AppState> {
 
     const {
       tree,
-      datasets,
+      //datasets,
       selectedDataset,
       selectedDatasetSchema,
       selectedTable,
@@ -264,6 +292,7 @@ export default class App extends React.Component<AppProps, AppState> {
       selectedColumns,
       filterTypes,
       errorMessage,
+      descriptionExpanded
     } = this.state;
     const { apiEndpoint } = this.props;
     //const url = this.constructDatasetRequestUrl(selectedDataset, selectedDatasetSchema, selectedTable, selectedColumns);
@@ -292,15 +321,37 @@ export default class App extends React.Component<AppProps, AppState> {
             </option>
           ))}
         </select> */}
-        <Search endpoint={apiEndpoint} />
-        <Dropdown
+        <Search endpoint={apiEndpoint} onSelect={this.onDatasetChange}/>
+        {/* <Dropdown
           id="dataset"
           label="Dataset"
           options={datasets.map((dataset) => ({ key: dataset.name, text: dataset.name }))}
           onChange={this.onDatasetChange}
           selectedKey={selectedDataset ? selectedDataset.name : undefined}
           placeholder="Select a dataset"
-        />
+        /> */}
+        {/**
+         * Display dataset information
+         */}
+        {selectedDataset && (
+          
+          <DocumentCard type={DocumentCardType.normal} className={selectedItemStyles}>
+            <DocumentCardDetails>
+              <DocumentCardTitle className={cardTitleStyles} title={selectedDataset.metadata.title} shouldTruncate />
+              <DocumentCardTitle className={cardTitleStyles} title={selectedDataset.metadata.publisher} showAsSecondaryTitle />
+              <Text variant="small" block className={descriptionStyles(descriptionExpanded)}>
+                {selectedDataset.metadata.description}
+              </Text>
+              <IconButton
+                iconProps={{ iconName: descriptionExpanded ? 'ChevronUpSmall' : 'ChevronDownSmall' }}
+                title={descriptionExpanded ? 'Collapse' : 'Expand'}
+                ariaLabel={descriptionExpanded ? 'Collapse' : 'Expand'}
+                onClick={() => this.setState((prevState) => ({ ...prevState, descriptionExpanded: !descriptionExpanded }))}
+              />
+            </DocumentCardDetails>
+          </DocumentCard>
+        )}
+
         {selectedDataset && !disableSchemaTableSelect && (
           <div>
             {/* <label htmlFor="dataset_schema">Dataset Schema</label>
